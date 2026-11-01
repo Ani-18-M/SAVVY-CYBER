@@ -82,7 +82,7 @@ function ThreatDetail() {
                   <ListOrdered className="size-4 text-primary" aria-hidden="true" /> How it works
                 </h3>
                 <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  {threat.how.map((h, i) => (
+                  {threat.how.map((h: string, i: number) => (
                     <li key={h} className="flex gap-3">
                       <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary/12 text-[11px] font-bold text-primary">
                         {i + 1}
@@ -112,7 +112,7 @@ function ThreatDetail() {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  {threat.signs.map((s) => (
+                  {threat.signs.map((s: string) => (
                     <li key={s} className="flex gap-2">
                       <span className="mt-2 size-1.5 shrink-0 rounded-full bg-warning" />
                       {s}
@@ -131,7 +131,7 @@ function ThreatDetail() {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  {threat.prevent.map((p) => (
+                  {threat.prevent.map((p: string) => (
                     <li key={p} className="flex gap-2">
                       <CheckCircle2
                         className="mt-0.5 size-4 shrink-0 text-success"
@@ -153,7 +153,7 @@ function ThreatDetail() {
               </CardHeader>
               <CardContent>
                 <ol className="space-y-2 text-sm text-muted-foreground">
-                  {threat.ifAffected.map((a, i) => (
+                  {threat.ifAffected.map((a: string, i: number) => (
                     <li key={a} className="flex gap-3">
                       <span className="grid size-5 shrink-0 place-items-center rounded-full bg-destructive/15 text-[11px] font-bold text-destructive">
                         {i + 1}
