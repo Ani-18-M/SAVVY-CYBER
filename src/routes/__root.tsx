@@ -16,6 +16,7 @@ import { LanguageProvider, LANGS, useI18n } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth";
 import { AppSidebar } from "@/components/site/AppSidebar";
 import { Footer } from "@/components/site/Footer";
+import { MobileBottomNav } from "@/components/site/MobileBottomNav";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -256,13 +257,16 @@ function RootComponent() {
         <LanguageProvider>
           <AuthProvider>
             {isLoginPage ? (
-              /* ── Login page: full-screen, no chrome ── */
+              /* ── Login page: full-screen, with mobile bottom nav ── */
               <>
-                <Outlet />
+                <div className="pb-16 md:pb-0">
+                  <Outlet />
+                </div>
+                <MobileBottomNav />
                 <Toaster position="top-center" richColors />
               </>
             ) : (
-              /* ── All other pages: sidebar + header + footer ── */
+              /* ── All other pages: sidebar + header + footer + mobile bottom nav ── */
               <>
                 <a
                   href="#main"
@@ -275,13 +279,16 @@ function RootComponent() {
                     <AppSidebar />
                     <div className="flex min-w-0 flex-1 flex-col">
                       <SiteHeader />
-                      <main id="main" className="flex-1">
+                      <main id="main" className="flex-1 pb-16 md:pb-0">
                         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
                         <Outlet />
                       </main>
-                      <Footer />
+                      <div className="pb-16 md:pb-0">
+                        <Footer />
+                      </div>
                     </div>
                   </div>
+                  <MobileBottomNav />
                   <Toaster position="top-center" richColors />
                 </SidebarProvider>
               </>
