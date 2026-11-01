@@ -403,6 +403,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY_SESSION);
+      sessionStorage.removeItem("cybersafe_guest_browse");
     }
     setUser(null);
   };

@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import * as React from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
   Fingerprint,
@@ -15,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Section, RiskBadge, DynamicIcon } from "@/components/site/primitives";
 import { stats, threats } from "@/lib/site-data";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 import { threatImage } from "@/lib/threat-images";
 
 export const Route = createFileRoute("/")({
@@ -78,7 +80,35 @@ const pillars = [
 
 function Home() {
   const { t } = useI18n();
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const featured = threats.slice(0, 6);
+
+  const [isClient, setIsClient] = React.useState(false);
+  const [guestAllowed, setGuestAllowed] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsClient(true);
+    const guest =
+      typeof window !== "undefined" &&
+      sessionStorage.getItem("cybersafe_guest_browse") === "true";
+    setGuestAllowed(guest);
+    if (!loading && !user && !guest) {
+      navigate({ to: "/login" });
+    }
+  }, [user, loading, navigate]);
+
+  // While checking auth on client, if not authenticated and not guest, show brief loading screen
+  if (isClient && !loading && !user && !guestAllowed) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-slate-400">
+          <div className="size-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+          <p className="text-xs">Directing to login...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

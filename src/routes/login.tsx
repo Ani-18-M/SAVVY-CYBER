@@ -211,6 +211,14 @@ function LoginPage() {
     toast.success("Signed out successfully. Session removed from Site Storage.");
   };
 
+  /* ── Continue as Guest ── */
+  const handleContinueAsGuest = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("cybersafe_guest_browse", "true");
+    }
+    navigate({ to: "/" });
+  };
+
   return (
     <div
       className="relative flex min-h-screen w-full overflow-hidden"
@@ -849,6 +857,18 @@ function LoginPage() {
                   </>
                 )}
               </p>
+
+              {/* ── Continue as Guest ── */}
+              <div className="mt-4 pt-3 border-t border-white/5 text-center">
+                <button
+                  type="button"
+                  onClick={handleContinueAsGuest}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-cyan-300 transition-colors"
+                >
+                  <span>Just exploring? Continue as Guest</span>
+                  <ArrowRight className="size-3.5" />
+                </button>
+              </div>
             </div>
           )}
 
