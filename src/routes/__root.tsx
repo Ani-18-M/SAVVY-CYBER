@@ -28,13 +28,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { User, LogIn, LogOut, ShieldCheck, Database } from "lucide-react";
+import { toast } from "sonner";
 
 function SiteHeader() {
   const { t, lang, setLang } = useI18n();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = () => {
+    signOut();
+    toast.success("Signed out successfully");
+  };
+
+  const displayName = user?.full_name || user?.username || user?.email?.split("@")[0] || "User";
+  const userInitial = displayName[0]?.toUpperCase() ?? "U";
+
   return (
     <header className="sticky top-0 z-40 flex h-14 w-full items-center gap-2 border-b border-border/60 bg-background/90 px-3 backdrop-blur-xl">
       <SidebarTrigger aria-label={t("common.menu")} />
-      <div className="ml-auto flex items-center gap-1.5">
+
+      <div className="ml-auto flex items-center gap-2">
+        {/* Language selector */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label={t("common.language")}>
@@ -54,6 +69,67 @@ function SiteHeader() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* User Account / Site Storage menu in Header */}
+        {user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-full p-1 pl-2 pr-2.5 transition hover:bg-accent focus:outline-none"
+                style={{
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.05)",
+                }}
+              >
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-xs font-bold text-white shadow-sm">
+                  {userInitial}
+                </span>
+                <span className="hidden sm:inline-block max-w-[100px] truncate text-xs font-medium text-foreground">
+                  {displayName}
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-semibold leading-none text-foreground">{displayName}</p>
+                  <p className="text-xs leading-none text-muted-foreground truncate">{user.email}</p>
+                  <div className="pt-1 flex items-center gap-1 text-[10px] text-cyan-400">
+                    <Database className="size-3" />
+                    <span>Site Storage Active</span>
+                  </div>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link to="/login" className="flex items-center gap-2 cursor-pointer">
+                  <User className="size-4" />
+                  <span>Account & Storage</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/checkup" className="flex items-center gap-2 cursor-pointer">
+                  <ShieldCheck className="size-4" />
+                  <span>Security Checkup</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleSignOut}
+                className="flex items-center gap-2 text-destructive focus:text-destructive cursor-pointer"
+              >
+                <LogOut className="size-4" />
+                <span>Sign Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button variant="default" size="sm" asChild className="gap-1.5 h-8 text-xs font-semibold">
+            <Link to="/login">
+              <LogIn className="size-3.5" />
+              <span>Sign In</span>
+            </Link>
+          </Button>
+        )}
       </div>
     </header>
   );

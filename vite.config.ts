@@ -12,7 +12,15 @@ export default defineConfig(({ command }) => ({
     tanstackStart({
       server: { entry: "server" },
     }),
-    ...(command === "build" ? [nitro()] : []),
+    ...(command === "build"
+      ? [
+          nitro(
+            process.env["VERCEL"]
+              ? { preset: "vercel" }
+              : {}
+          ),
+        ]
+      : []),
     viteReact(),
   ],
 }));

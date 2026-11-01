@@ -167,11 +167,14 @@ export function AppSidebar() {
                 {userInitial}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-white">
-                  {user ? userName : "Guest User"}
+                <span className="flex items-center gap-1.5 truncate text-sm font-semibold text-white">
+                  <span>{user ? userName : "Guest User"}</span>
+                  {user && (
+                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" title="Active session" />
+                  )}
                 </span>
-                <span className="block truncate text-xs text-blue-200/70">
-                  {user?.email || t("nav.login")}
+                <span className="block truncate text-xs text-cyan-300/80">
+                  {user ? user.role || user.email : t("nav.login")}
                 </span>
               </span>
             </Link>

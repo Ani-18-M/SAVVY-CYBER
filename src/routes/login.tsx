@@ -5,11 +5,17 @@ import {
   EyeOff,
   Lock,
   User as UserIcon,
+  Mail,
   Shield,
   GraduationCap,
   ClipboardCheck,
   LogOut,
   CheckCircle2,
+  AlertCircle,
+  Database,
+  ArrowRight,
+  KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
@@ -19,20 +25,20 @@ import logo from "@/assets/logo.png";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Sign In — CyberSafe" },
+      { title: "Authentication — CyberSafe" },
       {
         name: "description",
-        content: "Sign in to your CyberSafe account. Stay Aware, Stay Secure.",
+        content: "Sign in or create an account stored securely in site storage.",
       },
     ],
   }),
   component: LoginPage,
 });
 
-/* ─────────────────────────  SVG icons  ───────────────────────────────────── */
+/* ─────────────────────────  Social Icons  ─────────────────────────────────── */
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="size-[22px]" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
       <path
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
         fill="#4285F4"
@@ -55,7 +61,7 @@ function GoogleIcon() {
 
 function MicrosoftIcon() {
   return (
-    <svg viewBox="0 0 21 21" className="size-[22px]" aria-hidden="true">
+    <svg viewBox="0 0 21 21" className="size-5" aria-hidden="true">
       <rect x="1" y="1" width="9" height="9" fill="#F25022" />
       <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
       <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
@@ -66,13 +72,12 @@ function MicrosoftIcon() {
 
 function GitHubIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="size-[22px] fill-white" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="size-5 fill-white" aria-hidden="true">
       <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.21.09 1.85 1.24 1.85 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.65.24 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58C20.57 21.8 24 17.3 24 12 24 5.37 18.63 0 12 0z" />
     </svg>
   );
 }
 
-/* ─────────────────────────  Spinner  ─────────────────────────────────────── */
 function Spinner() {
   return (
     <svg className="size-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -84,72 +89,139 @@ function Spinner() {
 
 /* ─────────────────────────  Main component  ──────────────────────────────── */
 function LoginPage() {
-  const { user, loading: authLoading, loginAsDemo, signOut } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    rememberedIdentity,
+    signIn,
+    signUp,
+    loginAsDemo,
+    loginWithSocial,
+    signOut,
+    getSiteStorageStats,
+  } = useAuth();
   const navigate = useNavigate();
 
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
+  const [mode, setMode] = React.useState<"signin" | "signup">("signin");
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+  // Sign In inputs (empty by default)
+  const [loginIdentifier, setLoginIdentifier] = React.useState("");
+  const [loginPassword, setLoginPassword] = React.useState("");
+  const [loginRemember, setLoginRemember] = React.useState(false);
+
+  // Sign Up inputs (empty by default)
+  const [fullName, setFullName] = React.useState("");
+  const [signupEmail, setSignupEmail] = React.useState("");
+  const [signupUsername, setSignupUsername] = React.useState("");
+  const [signupPassword, setSignupPassword] = React.useState("");
+  const [signupConfirm, setSignupConfirm] = React.useState("");
+
   const [showPassword, setShowPassword] = React.useState(false);
-  const [rememberMe, setRememberMe] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
-  /* If already logged in, bounce straight to the dashboard */
-  React.useEffect(() => {
-    if (!authLoading && user) {
-      navigate({ to: "/" });
-    }
-  }, [user, authLoading, navigate]);
-
-  /* derive display values from the stored user */
-  const displayName = user?.full_name || user?.email?.split("@")[0] || "User";
+  // Derive stats
+  const storageStats = getSiteStorageStats();
+  const displayName = user?.full_name || user?.username || user?.email?.split("@")[0] || "User";
   const userInitial = displayName[0]?.toUpperCase() ?? "U";
 
-  /* ── handlers ── */
-  const handleSignIn = (e: React.FormEvent) => {
+  /* ── Sign In Handler ── */
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     setSubmitting(true);
-    setTimeout(() => {
-      loginAsDemo(username || undefined);
-      const name = username
-        ? username.includes("@")
-          ? username.split("@")[0]
-          : username
-        : "CyberSafe Student";
-      toast.success(`Welcome back, ${name}!`);
+
+    try {
+      const res = await signIn(loginIdentifier, loginPassword, loginRemember);
+      if (res.success && res.user) {
+        toast.success(`Welcome back, ${res.user.full_name}!`);
+        navigate({ to: "/" });
+      } else {
+        setErrorMessage(res.error || "Authentication failed. Please check your credentials.");
+        toast.error(res.error || "Sign in failed");
+      }
+    } catch {
+      setErrorMessage("An unexpected error occurred. Please try again.");
+    } finally {
       setSubmitting(false);
-      navigate({ to: "/" });
-    }, 900);
+    }
   };
 
-  const handleSocialLogin = (provider: string) => {
+  /* ── Sign Up Handler ── */
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (signupPassword !== signupConfirm) {
+      setErrorMessage("Passwords do not match. Please re-enter.");
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (signupPassword.length < 6) {
+      setErrorMessage("Password must be at least 6 characters long.");
+      toast.error("Password too short");
+      return;
+    }
+
     setSubmitting(true);
-    setTimeout(() => {
-      loginAsDemo(provider + " User");
-      toast.success(`Signed in with ${provider}.`);
+
+    try {
+      const res = await signUp({
+        fullName,
+        email: signupEmail,
+        username: signupUsername || undefined,
+        password: signupPassword,
+        rememberMe: true,
+      });
+
+      if (res.success && res.user) {
+        toast.success(`Account created in Site Storage! Welcome, ${res.user.full_name}.`);
+        navigate({ to: "/" });
+      } else {
+        setErrorMessage(res.error || "Failed to create account.");
+        toast.error(res.error || "Sign up failed");
+      }
+    } catch {
+      setErrorMessage("An unexpected error occurred during account creation.");
+    } finally {
       setSubmitting(false);
-      navigate({ to: "/" });
-    }, 700);
+    }
   };
 
+  /* ── Social Login ── */
+  const handleSocial = async (provider: "Google" | "Microsoft" | "GitHub") => {
+    setSubmitting(true);
+    setErrorMessage(null);
+    try {
+      const res = await loginWithSocial(provider);
+      if (res.success && res.user) {
+        toast.success(`Connected via ${provider} (Stored in Site Storage)`);
+        navigate({ to: "/" });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /* ── Sign Out ── */
   const handleSignOut = () => {
     signOut();
-    setUsername("");
-    setPassword("");
-    toast.success("Signed out successfully.");
+    setLoginPassword("");
+    toast.success("Signed out successfully. Session removed from Site Storage.");
   };
 
-  /* ── full-page layout ── */
   return (
     <div
       className="relative flex min-h-screen w-full overflow-hidden"
       style={{ background: "#050e1f" }}
     >
-      {/* ── background image ── */}
+      {/* ── Background Cyber Image ── */}
       <img
         src={loginBg}
         alt=""
         aria-hidden="true"
-        className="absolute inset-0 h-full w-full object-cover object-[30%_center] select-none pointer-events-none"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[30%_center] select-none"
         style={{ filter: "brightness(0.85) contrast(1.05)" }}
       />
 
@@ -174,8 +246,8 @@ function LoginPage() {
         }}
       />
 
-      {/* ══════════════════  CARD PANEL  ══════════════════ */}
-      <div className="relative z-10 ml-auto flex min-h-screen w-full items-center justify-center px-4 sm:max-w-[500px] sm:px-8 md:px-10">
+      {/* ══════════════════  CARD PANEL (Right Docked)  ══════════════════ */}
+      <div className="relative z-10 ml-auto flex min-h-screen w-full items-center justify-center px-4 py-8 sm:max-w-[500px] sm:px-8 md:px-10">
         <div
           className="w-full rounded-2xl px-8 py-9 shadow-[0_8px_48px_rgba(0,0,0,0.7)]"
           style={{
@@ -185,302 +257,612 @@ function LoginPage() {
             border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
-          {/* ── Logo row ── */}
-          <div className="mb-7 flex items-center gap-3">
-            <span
-              className="flex size-11 shrink-0 items-center justify-center rounded-xl"
+          {/* ── Header / Logo row ── */}
+          <div className="mb-6 flex items-center justify-between">
+            <Link to="/" className="group flex items-center gap-3 transition-opacity hover:opacity-90">
+              <span
+                className="flex size-11 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105"
+                style={{
+                  background: "rgba(37,99,235,0.22)",
+                  border: "1px solid rgba(59,130,246,0.35)",
+                }}
+              >
+                <img src={logo} alt="CyberSafe" className="h-7 w-auto object-contain" />
+              </span>
+              <div>
+                <p className="text-[17px] font-bold tracking-tight text-white">
+                  Cyber<span className="text-cyan-400">Safe</span>
+                </p>
+                <p className="text-[11px] font-medium tracking-wide text-blue-300/75">
+                  Stay Aware, Stay Secure
+                </p>
+              </div>
+            </Link>
+
+            {/* Site Storage Active Pill */}
+            <div
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-cyan-300"
               style={{
-                background: "rgba(37,99,235,0.18)",
-                border: "1px solid rgba(59,130,246,0.25)",
+                background: "rgba(6, 182, 212, 0.12)",
+                border: "1px solid rgba(6, 182, 212, 0.25)",
               }}
+              title="Authentication data is preserved securely in your browser's Site Storage (localStorage)"
             >
-              <img src={logo} alt="" className="h-7 w-auto object-contain" aria-hidden="true" />
-            </span>
-            <div className="leading-snug">
-              <p className="text-[17px] font-bold tracking-tight text-white">
-                Cyber<span className="text-blue-400">Safe</span>
-              </p>
-              <p className="text-[11px] font-medium tracking-wide text-blue-300/70">
-                Stay Aware, Stay Secure
-              </p>
+              <Database className="size-3 text-cyan-400 animate-pulse" />
+              <span>Site Storage</span>
             </div>
           </div>
 
           {/* ══════════  Loading state  ══════════ */}
           {authLoading ? (
-            <div className="flex flex-col items-center gap-3 py-12 text-slate-400">
+            <div className="flex flex-col items-center gap-3 py-14 text-slate-400">
               <Spinner />
-              <p className="text-sm">Loading session…</p>
+              <p className="text-sm">Reading Site Storage session…</p>
             </div>
-          ) : /* ══════════  Already signed in  ══════════ */
-          user ? (
-            <div className="space-y-5">
-              {/* greeting */}
+          ) : user ? (
+            /* ══════════  Already Signed In Profile Card  ══════════ */
+            <div className="space-y-6">
               <div
-                className="flex items-center gap-4 rounded-2xl p-4"
+                className="rounded-2xl p-5"
                 style={{
-                  background: "rgba(37,99,235,0.12)",
-                  border: "1px solid rgba(59,130,246,0.18)",
+                  background: "linear-gradient(145deg, rgba(37,99,235,0.15) 0%, rgba(6,182,212,0.08) 100%)",
+                  border: "1px solid rgba(59,130,246,0.3)",
                 }}
               >
-                <span
-                  className="flex size-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white shadow"
-                  style={{ background: "linear-gradient(135deg,#2563eb,#06b6d4)" }}
-                >
-                  {userInitial}
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-base font-semibold text-white">{displayName}</p>
-                    <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      Active
+                <div className="flex items-center gap-4">
+                  <span
+                    className="flex size-14 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-lg"
+                    style={{ background: "linear-gradient(135deg,#2563eb,#06b6d4)" }}
+                  >
+                    {userInitial}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-lg font-bold text-white">{displayName}</p>
+                      <span className="flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/30">
+                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Online
+                      </span>
+                    </div>
+                    <p className="truncate text-xs text-slate-300">{user.email}</p>
+                    <p className="mt-1 text-[11px] font-medium text-cyan-400 flex items-center gap-1">
+                      <ShieldCheck className="size-3" />
+                      {user.role || "Security Analyst"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-[11px] text-slate-400">
+                  <div>
+                    <span className="block text-slate-500">Storage Provider</span>
+                    <span className="font-medium text-slate-200 capitalize">
+                      {user.provider || "Site Storage"}
                     </span>
                   </div>
-                  <p className="truncate text-xs text-slate-400">{user.email}</p>
-                  <p className="mt-0.5 text-[11px] text-blue-400/70">Demo session · local only</p>
+                  <div>
+                    <span className="block text-slate-500">Session Status</span>
+                    <span className="font-medium text-emerald-400">Saved in LocalStorage</span>
+                  </div>
                 </div>
               </div>
 
-              {/* success banner */}
+              {/* Status Notice */}
               <div
-                className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm text-emerald-300"
+                className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs text-emerald-300"
                 style={{
                   background: "rgba(16,185,129,0.08)",
-                  border: "1px solid rgba(16,185,129,0.18)",
+                  border: "1px solid rgba(16,185,129,0.22)",
                 }}
               >
                 <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
-                <span>You're securely signed in to CyberSafe.</span>
+                <span>You are securely authenticated. Your session persists in site storage.</span>
               </div>
 
-              {/* quick nav */}
+              {/* Quick Navigation Cards */}
               <div className="grid grid-cols-2 gap-3">
-                {[
-                  {
-                    to: "/learn",
-                    icon: <GraduationCap className="size-4" />,
-                    label: "Learning Hub",
-                    desc: "Modules & quizzes",
-                  },
-                  {
-                    to: "/checkup",
-                    icon: <ClipboardCheck className="size-4" />,
-                    label: "Security Checkup",
-                    desc: "Your safety score",
-                  },
-                ].map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className="flex flex-col gap-1.5 rounded-xl p-3.5 transition hover:brightness-110"
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.07)",
-                    }}
-                  >
-                    <span
-                      className="flex size-8 items-center justify-center rounded-lg text-blue-400"
-                      style={{ background: "rgba(37,99,235,0.15)" }}
-                    >
-                      {item.icon}
-                    </span>
-                    <p className="text-xs font-semibold text-white">{item.label}</p>
-                    <p className="text-[11px] text-slate-500">{item.desc}</p>
-                  </Link>
-                ))}
-              </div>
-
-              {/* sign-out */}
-              <button
-                onClick={handleSignOut}
-                className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium text-slate-300 transition hover:text-red-400"
-                style={{
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  background: "rgba(255,255,255,0.03)",
-                }}
-              >
-                <LogOut className="size-4" />
-                Sign Out
-              </button>
-            </div>
-          ) : (
-            /* ══════════  Login form  ══════════ */
-            <>
-              {/* heading */}
-              <div className="mb-6">
-                <h1 className="text-[1.85rem] font-bold leading-tight tracking-tight text-white">
-                  Welcome Back!
-                </h1>
-                <p className="mt-1.5 text-sm text-slate-400">Login to continue your account</p>
-              </div>
-
-              <form onSubmit={handleSignIn} noValidate className="space-y-[14px]">
-                {/* Username / Email */}
-                <div className="relative">
-                  <UserIcon
-                    className="pointer-events-none absolute left-4 top-1/2 size-[15px] -translate-y-1/2 text-slate-500"
-                    aria-hidden="true"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Username or Email"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    autoComplete="username"
-                    disabled={submitting}
-                    className="w-full rounded-[13px] py-[13px] pl-11 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all disabled:opacity-60"
-                    style={{
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.border = "1px solid rgba(59,130,246,0.55)";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59,130,246,0.12)";
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.border = "1px solid rgba(255,255,255,0.10)";
-                      e.currentTarget.style.boxShadow = "none";
-                    }}
-                  />
-                </div>
-
-                {/* Password */}
-                <div className="relative">
-                  <Lock
-                    className="pointer-events-none absolute left-4 top-1/2 size-[15px] -translate-y-1/2 text-slate-500"
-                    aria-hidden="true"
-                  />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                    disabled={submitting}
-                    className="w-full rounded-[13px] py-[13px] pl-11 pr-12 text-sm text-white placeholder-slate-500 outline-none transition-all disabled:opacity-60"
-                    style={{
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.border = "1px solid rgba(59,130,246,0.55)";
-                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59,130,246,0.12)";
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.border = "1px solid rgba(255,255,255,0.10)";
-                      e.currentTarget.style.boxShadow = "none";
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-300"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-[15px]" />
-                    ) : (
-                      <Eye className="size-[15px]" />
-                    )}
-                  </button>
-                </div>
-
-                {/* Remember Me + Forgot Password */}
-                <div className="flex items-center justify-between pt-0.5">
-                  <label className="flex cursor-pointer select-none items-center gap-2 text-[13px] text-slate-400">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="size-[13px] cursor-pointer rounded accent-blue-500"
-                    />
-                    Remember Me
-                  </label>
-                  <button
-                    type="button"
-                    className="text-[13px] font-medium text-blue-400 transition hover:text-blue-300 hover:underline"
-                  >
-                    Forgot Password?
-                  </button>
-                </div>
-
-                {/* Sign In button */}
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="mt-1 flex w-full items-center justify-center gap-2.5 rounded-[13px] py-[14px] text-[15px] font-semibold text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-70"
+                <Link
+                  to="/"
+                  className="flex items-center gap-3 rounded-xl p-3.5 transition hover:brightness-125"
                   style={{
-                    background: "linear-gradient(90deg, #1d4ed8 0%, #3b82f6 45%, #0ea5e9 100%)",
-                    boxShadow: "0 4px 24px rgba(59,130,246,0.35)",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
-                  {submitting ? (
-                    <>
-                      <Spinner /> Signing in…
-                    </>
-                  ) : (
-                    "Sign In"
-                  )}
-                </button>
-              </form>
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-blue-600/20 text-blue-400">
+                    <ArrowRight className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold text-white">Dashboard</p>
+                    <p className="text-[10px] text-slate-400">Home portal</p>
+                  </div>
+                </Link>
 
-              {/* ── Or continue with ── */}
-              <div className="my-5 flex items-center gap-3">
-                <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.09)" }} />
-                <span className="text-[12px] font-medium text-slate-500">Or continue with</span>
-                <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.09)" }} />
+                <Link
+                  to="/checkup"
+                  className="flex items-center gap-3 rounded-xl p-3.5 transition hover:brightness-125"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-cyan-600/20 text-cyan-400">
+                    <ClipboardCheck className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold text-white">Checkup</p>
+                    <p className="text-[10px] text-slate-400">Safety score</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/learn"
+                  className="flex items-center gap-3 rounded-xl p-3.5 transition hover:brightness-125"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-emerald-600/20 text-emerald-400">
+                    <GraduationCap className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold text-white">Learn Hub</p>
+                    <p className="text-[10px] text-slate-400">Interactive guides</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/incident"
+                  className="flex items-center gap-3 rounded-xl p-3.5 transition hover:brightness-125"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-amber-600/20 text-amber-400">
+                    <Shield className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold text-white">Incident</p>
+                    <p className="text-[10px] text-slate-400">Report threats</p>
+                  </div>
+                </Link>
               </div>
 
-              {/* ── Social buttons ── */}
-              <div className="flex items-center justify-center gap-[18px]">
+              {/* Action buttons */}
+              <div className="flex flex-col gap-2.5 pt-2">
+                <Link
+                  to="/"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110"
+                  style={{
+                    background: "linear-gradient(90deg, #1d4ed8 0%, #3b82f6 50%, #0ea5e9 100%)",
+                  }}
+                >
+                  Continue to Site
+                  <ArrowRight className="size-4" />
+                </Link>
+
+                <button
+                  onClick={handleSignOut}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium text-slate-300 transition hover:bg-red-500/10 hover:text-red-400"
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(255,255,255,0.03)",
+                  }}
+                >
+                  <LogOut className="size-4" />
+                  Sign Out from Site Storage
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ══════════  Sign In / Sign Up Forms  ══════════ */
+            <div>
+              {/* Tab Selector: Sign In / Create Account */}
+              <div
+                className="mb-6 flex rounded-xl p-1"
+                style={{
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("signin");
+                    setErrorMessage(null);
+                  }}
+                  className={`flex-1 rounded-lg py-2.5 text-xs font-semibold transition-all ${
+                    mode === "signin"
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("signup");
+                    setErrorMessage(null);
+                  }}
+                  className={`flex-1 rounded-lg py-2.5 text-xs font-semibold transition-all ${
+                    mode === "signup"
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Create Account
+                </button>
+              </div>
+
+              {/* Title & Description */}
+              <div className="mb-5">
+                <h1 className="text-2xl font-bold leading-tight tracking-tight text-white">
+                  {mode === "signin" ? "Welcome Back!" : "Join CyberSafe"}
+                </h1>
+                <p className="mt-1 text-xs text-slate-400">
+                  {mode === "signin"
+                    ? "Sign in using your credentials stored in site storage."
+                    : "Create a local account saved directly in your browser's site storage."}
+                </p>
+              </div>
+
+              {/* Error Notice */}
+              {errorMessage && (
+                <div
+                  className="mb-4 flex items-start gap-2.5 rounded-xl p-3 text-xs text-red-300"
+                  style={{
+                    background: "rgba(239, 68, 68, 0.12)",
+                    border: "1px solid rgba(239, 68, 68, 0.25)",
+                  }}
+                >
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-400" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {/* ────────────────── SIGN IN FORM ────────────────── */}
+              {mode === "signin" && (
+                <form onSubmit={handleSignIn} className="space-y-3.5">
+                  {/* Email / Username */}
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-300">
+                      Email or Username
+                    </label>
+                    <div className="relative">
+                      <UserIcon
+                        className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+                        aria-hidden="true"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Username or email"
+                        value={loginIdentifier}
+                        onChange={(e) => setLoginIdentifier(e.target.value)}
+                        autoComplete="username"
+                        disabled={submitting}
+                        required
+                        className="w-full rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all disabled:opacity-60"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-300">Password</label>
+                    <div className="relative">
+                      <Lock
+                        className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+                        aria-hidden="true"
+                      />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Password"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        autoComplete="current-password"
+                        disabled={submitting}
+                        required
+                        className="w-full rounded-xl py-3 pl-10 pr-11 text-sm text-white placeholder-slate-500 outline-none transition-all disabled:opacity-60"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-300"
+                      >
+                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Remember Me */}
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={loginRemember}
+                        onChange={(e) => setLoginRemember(e.target.checked)}
+                        className="size-3.5 cursor-pointer rounded accent-blue-500"
+                      />
+                      Remember me in Site Storage
+                    </label>
+                  </div>
+
+                  {/* Sign In button */}
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-70"
+                    style={{
+                      background: "linear-gradient(90deg, #1d4ed8 0%, #3b82f6 50%, #0ea5e9 100%)",
+                      boxShadow: "0 4px 20px rgba(59,130,246,0.35)",
+                    }}
+                  >
+                    {submitting ? (
+                      <>
+                        <Spinner /> Signing in…
+                      </>
+                    ) : (
+                      "Sign In"
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* ────────────────── SIGN UP FORM ────────────────── */}
+              {mode === "signup" && (
+                <form onSubmit={handleSignUp} className="space-y-3">
+                  {/* Full Name */}
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-300">Full Name</label>
+                    <div className="relative">
+                      <UserIcon
+                        className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+                        aria-hidden="true"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Full name"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        autoComplete="name"
+                        disabled={submitting}
+                        required
+                        className="w-full rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all disabled:opacity-60"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-300">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail
+                        className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+                        aria-hidden="true"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email address"
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        autoComplete="email"
+                        disabled={submitting}
+                        required
+                        className="w-full rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all disabled:opacity-60"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Username (Optional) */}
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-300">
+                      Username <span className="text-slate-500">(Optional)</span>
+                    </label>
+                    <div className="relative">
+                      <KeyRound
+                        className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+                        aria-hidden="true"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Username"
+                        value={signupUsername}
+                        onChange={(e) => setSignupUsername(e.target.value)}
+                        autoComplete="username"
+                        disabled={submitting}
+                        className="w-full rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all disabled:opacity-60"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password & Confirm */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-300">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <Lock
+                          className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+                          aria-hidden="true"
+                        />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Password"
+                          value={signupPassword}
+                          onChange={(e) => setSignupPassword(e.target.value)}
+                          autoComplete="new-password"
+                          disabled={submitting}
+                          required
+                          className="w-full rounded-xl py-2.5 pl-10 pr-9 text-sm text-white placeholder-slate-500 outline-none transition-all disabled:opacity-60"
+                          style={{
+                            background: "rgba(255,255,255,0.05)",
+                            border: "1px solid rgba(255,255,255,0.12)",
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-300">
+                        Confirm Password
+                      </label>
+                      <div className="relative">
+                        <Lock
+                          className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+                          aria-hidden="true"
+                        />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Confirm password"
+                          value={signupConfirm}
+                          onChange={(e) => setSignupConfirm(e.target.value)}
+                          autoComplete="new-password"
+                          disabled={submitting}
+                          required
+                          className="w-full rounded-xl py-2.5 pl-10 pr-9 text-sm text-white placeholder-slate-500 outline-none transition-all disabled:opacity-60"
+                          style={{
+                            background: "rgba(255,255,255,0.05)",
+                            border: "1px solid rgba(255,255,255,0.12)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Toggle Show Password */}
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      {showPassword ? "Hide password characters" : "Show password characters"}
+                    </button>
+                    <span className="text-[11px] text-slate-500">Stored via SHA-256</span>
+                  </div>
+
+                  {/* Sign Up button */}
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-70"
+                    style={{
+                      background: "linear-gradient(90deg, #059669 0%, #10b981 50%, #06b6d4 100%)",
+                      boxShadow: "0 4px 20px rgba(16,185,129,0.3)",
+                    }}
+                  >
+                    {submitting ? (
+                      <>
+                        <Spinner /> Creating Account…
+                      </>
+                    ) : (
+                      "Create Site Storage Account"
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* ── Social Login ── */}
+              <div className="my-5 flex items-center gap-3">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[11px] font-medium text-slate-500">Or connect with</span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+
+              <div className="flex items-center justify-center gap-3">
                 {[
-                  { label: "Google", icon: <GoogleIcon />, provider: "Google" },
-                  { label: "Microsoft", icon: <MicrosoftIcon />, provider: "Microsoft" },
-                  { label: "GitHub", icon: <GitHubIcon />, provider: "GitHub" },
+                  { label: "Google", icon: <GoogleIcon />, provider: "Google" as const },
+                  { label: "Microsoft", icon: <MicrosoftIcon />, provider: "Microsoft" as const },
+                  { label: "GitHub", icon: <GitHubIcon />, provider: "GitHub" as const },
                 ].map(({ label, icon, provider }) => (
                   <button
                     key={label}
                     type="button"
                     aria-label={`Sign in with ${label}`}
                     disabled={submitting}
-                    onClick={() => handleSocialLogin(provider)}
-                    className="flex size-[52px] items-center justify-center rounded-full transition hover:brightness-125 active:scale-95 disabled:opacity-60"
-                    style={{
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                    }}
+                    onClick={() => handleSocial(provider)}
+                    className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-xs font-medium text-slate-200 transition hover:bg-white/10 hover:border-white/20 active:scale-95 disabled:opacity-60"
                   >
                     {icon}
+                    <span>{label}</span>
                   </button>
                 ))}
               </div>
 
-              {/* ── Sign Up ── */}
-              <p className="mt-6 text-center text-[13px] text-slate-400">
-                Don&apos;t have an account?{" "}
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => {
-                    loginAsDemo(username || undefined);
-                    toast.success("Demo account created! Welcome to CyberSafe.");
-                  }}
-                  className="font-semibold text-blue-400 transition hover:text-blue-300 hover:underline disabled:opacity-60"
-                >
-                  Sign Up
-                </button>
+              {/* ── Mode switch bottom row ── */}
+              <p className="mt-5 text-center text-xs text-slate-400">
+                {mode === "signin" ? (
+                  <>
+                    Don&apos;t have an account?{" "}
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => {
+                        setMode("signup");
+                        setErrorMessage(null);
+                      }}
+                      className="font-semibold text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      Sign Up Free
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => {
+                        setMode("signin");
+                        setErrorMessage(null);
+                      }}
+                      className="font-semibold text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      Sign In Here
+                    </button>
+                  </>
+                )}
               </p>
-            </>
-          )}
-
-          {/* ── Shield security badge (bottom of card) ── */}
-          {!user && !authLoading && (
-            <div className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-slate-600">
-              <Shield className="size-3 text-blue-600/60" />
-              <span>256-bit SSL encrypted · Zero data collected</span>
             </div>
           )}
+
+          {/* ── Security & Site Storage Footer ── */}
+          <div className="mt-6 flex flex-col items-center justify-center gap-1 border-t border-white/10 pt-4 text-center text-[11px] text-slate-500">
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Shield className="size-3 text-cyan-400" />
+              <span>Client-Side Site Storage Architecture</span>
+            </div>
+            <p className="text-[10px] text-slate-500">
+              Accounts and sessions are stored in your browser's local storage. Zero external server
+              tracking.
+            </p>
+          </div>
         </div>
       </div>
     </div>
